@@ -3,7 +3,7 @@
 #include "mbed.h"
 #include "DigitalInOut.h"
 
-class dht11
+class Dht11
 {
 private:
 	DigitalInOut* sensorPin;//defaults to pin 2
