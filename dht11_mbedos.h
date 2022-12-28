@@ -6,9 +6,9 @@
 class Dht11
 {
 private:
-	DigitalInOut* sensorPin;//defaults to pin 2
+	DigitalInOut* sensorPin;
 public:
-    void attach(DigitalInOut* pin);//Attaches dht11 object to a particular sensorPin
+    void attach(DigitalInOut* pin);//Attaches dht11 object to a particular Pin
 	int read();
 	int humidity;
 	int temperature;

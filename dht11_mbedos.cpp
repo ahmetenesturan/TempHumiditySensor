@@ -1,7 +1,9 @@
 #include "dht11_mbedos.h"
 #include "Kernel.h"
 #include "ThisThread.h"
+#include "Timer.h"
 #include "us_ticker_api.h"
+#include <chrono>
 #include <cstdint>
 #include <ratio>
 
@@ -13,12 +15,16 @@ void Dht11::attach(DigitalInOut* pin)
     sensorPin = pin;
 }
 
+
+
 int Dht11::read()
 {
 	// BUFFER TO RECEIVE
 	uint8_t bits[5];
 	uint8_t cnt = 7;
 	uint8_t idx = 0;
+
+    Timer timer_object;
 
 	// EMPTY BUFFER
 	for (int i=0; i< 5; i++) bits[i] = 0;
@@ -27,7 +33,8 @@ int Dht11::read()
 	sensorPin->output();
 	sensorPin->write(LOW);
 	//wait 18ms
-    ThisThread::sleep_for(18);
+    //ThisThread::sleep_for(18);
+    wait_us(18e3);
 	sensorPin->write(HIGH);
 	//wait 40us
     wait_us(40);
@@ -54,9 +61,13 @@ int Dht11::read()
         //auto t0_t = std::chrono::time_point_cast<std::chrono::microseconds>(Kernel::Clock::now());
         //volatile long t0 = t0_t.time_since_epoch().count();
 
-        volatile auto t0 = us_ticker_read();
+        //volatile auto t0 = us_ticker_read();
 
 		//unsigned long t = micros();
+
+        timer_object.start();
+
+        
 
 		loopCnt = 10000;
 		while(sensorPin->read() == HIGH)
@@ -65,15 +76,17 @@ int Dht11::read()
         //auto t1_t = std::chrono::time_point_cast<std::chrono::microseconds>(Kernel::Clock::now());
         //volatile long t1 = t1_t.time_since_epoch().count();
 
-        volatile auto t1 = us_ticker_read();
+        timer_object.stop();
 
-		if ((t1 - t0) > 40) bits[idx] |= (1 << cnt);
+		if (chrono::duration_cast<chrono::microseconds>(timer_object.elapsed_time()).count() > 40) bits[idx] |= (1 << cnt);
 		if (cnt == 0)   // next byte?
 		{
 			cnt = 7;    // restart at MSB
 			idx++;      // next byte!
 		}
 		else cnt--;
+
+        timer_object.reset();
 	}
 
 	// WRITE TO RIGHT VARS
@@ -86,3 +99,33 @@ int Dht11::read()
 	if (bits[4] != sum) return -1;
 	return 0;
 }
+
+/*
+int Dht11::read()
+{
+    uint8_t data[5] = {0};
+    Timer timer_object;
+
+    //start signal
+    sensorPin->output();
+    sensorPin->write(LOW);
+    //ThisThread::sleep_for(18); //wait for 18ms
+    wait_us(18e3);
+    sensorPin->write(HIGH);
+    wait_us(30); //wait for 20-40us
+    sensorPin->input();
+
+    for(int i = 0; i < 40; i++)
+    {
+        while(sensorPin->read() == LOW);
+        timer_object.start();
+        
+        
+
+    }
+
+
+    
+
+}
+*/
