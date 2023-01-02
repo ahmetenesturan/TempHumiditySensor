@@ -1,71 +1,62 @@
-
-#include "DigitalInOut.h"
-#include "DigitalOut.h"
-#include "InterfaceDigitalInOut.h"
-#include "PinNameAliases.h"
-#include "PinNamesTypes.h"
-#include "ThisThread.h"
 #include "mbed.h"
-#include "dht11_mbedos.h"
+#include "BufferedSerial.h"
+#include <cstdint>
 #include <cstdio>
-//#include "DHT/DHT.h"
+#include <cstring>
+#include "Thread.h"
+#include "Mutex.h"
+
+#define SENSOR_BUF_LEN 26
+
+Mutex mut;
+
+uint8_t sensor_buffer[SENSOR_BUF_LEN] = {0};
+
+static BufferedSerial arduino(PC_10, PC_11, 9600);
+
+//static BufferedSerial esp(PA_0, PA_1, 9600);
+
+void sensor_thread_fn(void);
+void esp_thread_fn(void);
+
+char temperature[6] = {0};
+char humidity[6] = {0};
 
 
-
-Dht11* dht11_sensor = new Dht11(PC_3);
-
-//DHT11 dht11_sensor(PD_9);
-
-
-//DHT sensor(PD_9, DHT11);
-
-
-// main() runs in its own thread in the OS
 int main()
 {
-    //dht11_sensor->attach(dht11_pin);
-    
-    ThisThread::sleep_for(2000);
 
+    Thread* sensor_thread = new Thread(osPriorityNormal, 2048, nullptr, "Sensor Thread");
+    Thread* esp_thread = new Thread(osPriorityNormal, 2048, nullptr, "ESP Thread");
 
-    while (true) {
-        //sensor.readData();
-        dht11_sensor->read();
-        printf("Nem:%d, Sicaklik:%d\n", dht11_sensor->humidity, dht11_sensor->temperature);
-        //float a = sensor.ReadTemperature(CELCIUS);
-        //printf("%d, %d\n", (int)sensor.ReadTemperature(CELCIUS), (int)sensor.ReadHumidity());
-        ThisThread::sleep_for(5000);
+    sensor_thread->start(&sensor_thread_fn);
+    sensor_thread->start(&esp_thread_fn);
+
+    while (true)
+    {
+
     }
 }
 
 
-/*
-#include "PinNames.h"
-#include "mbed.h"
-#include "DHT.h"
- 
-DHT sensor(PC_5, DHT11);
- 
-int main()
+void sensor_thread_fn(void)
 {
-    int error = 0;
-    float h = 0.0f, c = 0.0f, f = 0.0f, k = 0.0f, dp = 0.0f, dpf = 0.0f;
- 
-    while(1) {
-        wait_us(2e3);
-        error = sensor.readData();
-        if (0 == error) {
-            c   = sensor.ReadTemperature(CELCIUS);
-            f   = sensor.ReadTemperature(FARENHEIT);
-            k   = sensor.ReadTemperature(KELVIN);
-            h   = sensor.ReadHumidity();
-            dp  = sensor.CalcdewPoint(c, h);
-            dpf = sensor.CalcdewPointFast(c, h);
-            printf("Temperature in Kelvin: %4.2f, Celcius: %4.2f, Farenheit %4.2f\n", k, c, f);
-            printf("Humidity is %4.2f, Dewpoint: %4.2f, Dewpoint fast: %4.2f\n", h, dp, dpf);
-        } else {
-            printf("Error: %d\n", error);
+    while (true)
+    {
+        mut.lock();
+        if (uint32_t num = arduino.read(sensor_buffer, SENSOR_BUF_LEN))
+        {
+            sensor_buffer[num] = '\0';
+            printf("%s", sensor_buffer);
         }
+        mut.unlock();
+        
+        ThisThread::sleep_for(500);
     }
 }
-*/
+
+
+void esp_thread_fn(void)
+{
+
+}
