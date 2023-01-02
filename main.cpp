@@ -47,11 +47,29 @@ void sensor_thread_fn(void)
         if (uint32_t num = arduino.read(sensor_buffer, SENSOR_BUF_LEN))
         {
             sensor_buffer[num] = '\0';
-            printf("%s", sensor_buffer);
+            for(int i = 0; i < SENSOR_BUF_LEN; i++)
+            {
+                if(sensor_buffer[i] == 'h')
+                {
+                    for(int j = 0; j < 5; j++)
+                    {
+                        humidity[j] = sensor_buffer[i + j + 1];
+                    }
+                    humidity[5] = '\0';
+
+                    for(int j = 0; j < 5; j++)
+                    {
+                        temperature[j] = sensor_buffer[i + j + 7];
+                    }
+                    temperature[5] = '\0';
+                    break;
+                }
+            }
         }
+        printf("h:%st:%s", humidity, temperature);
         mut.unlock();
         
-        ThisThread::sleep_for(500);
+        ThisThread::sleep_for(10000);
     }
 }
 
