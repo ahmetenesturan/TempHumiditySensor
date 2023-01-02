@@ -14,13 +14,15 @@ uint8_t sensor_buffer[SENSOR_BUF_LEN] = {0};
 
 static BufferedSerial arduino(PC_10, PC_11, 9600);
 
-//static BufferedSerial esp(PA_0, PA_1, 9600);
+static BufferedSerial esp(PA_9, PA_10,115200);
 
 void sensor_thread_fn(void);
 void esp_thread_fn(void);
 
 char temperature[6] = {0};
-char humidity[6] = {0};
+char humidity[5] = {0};
+
+char TxBuffer[11] = {0};
 
 
 int main()
@@ -55,7 +57,7 @@ void sensor_thread_fn(void)
                     {
                         humidity[j] = sensor_buffer[i + j + 1];
                     }
-                    humidity[5] = '\0';
+                    
 
                     for(int j = 0; j < 5; j++)
                     {
@@ -76,5 +78,16 @@ void sensor_thread_fn(void)
 
 void esp_thread_fn(void)
 {
+    while(true){
+        mut.lock();
+        int i = 0;
+        
+        for(i; i < 5; i++){
+            TxBuffer[i+5] = temperature[i];
+        }
+        serial_port.write(TxBuffer, 11);
+        mut.unlock();
+        ThisThread::sleep_for(5000);
+    }
 
 }
