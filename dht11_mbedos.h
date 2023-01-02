@@ -2,13 +2,14 @@
 
 #include "mbed.h"
 #include "DigitalInOut.h"
+#include <cstdio>
 
 class Dht11
 {
 private:
 	DigitalInOut* sensorPin;
 public:
-    void attach(DigitalInOut* pin);//Attaches dht11 object to a particular Pin
+    Dht11(PinName pin);//Attaches dht11 object to a particular Pin
 	int read();
 	int humidity;
 	int temperature;

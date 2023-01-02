@@ -1,131 +1,93 @@
 #include "dht11_mbedos.h"
 #include "Kernel.h"
+#include "PinNamesTypes.h"
 #include "ThisThread.h"
 #include "Timer.h"
-#include "us_ticker_api.h"
+#include "mbed_wait_api.h"
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <ratio>
 
 #define HIGH 1
 #define LOW 0
 
-void Dht11::attach(DigitalInOut* pin)
+Dht11::Dht11(PinName pin)
 {
-    sensorPin = pin;
+    sensorPin = new DigitalInOut(pin);
+    temperature = 0;
+    humidity = 0;
+    sensorPin->output();
+    sensorPin->write(HIGH);
 }
 
-
-
-int Dht11::read()
-{
-	// BUFFER TO RECEIVE
-	uint8_t bits[5];
-	uint8_t cnt = 7;
-	uint8_t idx = 0;
-
-    Timer timer_object;
-
-	// EMPTY BUFFER
-	for (int i=0; i< 5; i++) bits[i] = 0;
-
-	// REQUEST SAMPLE
-	sensorPin->output();
-	sensorPin->write(LOW);
-	//wait 18ms
-    //ThisThread::sleep_for(18);
-    wait_us(18e3);
-	sensorPin->write(HIGH);
-	//wait 40us
-    wait_us(40);
-	sensorPin->input();
-
-	// ACKNOWLEDGE or TIMEOUT
-	unsigned int loopCnt = 10000;
-	while(sensorPin->read() == LOW)
-		if (loopCnt-- == 0) return -2;
-
-	loopCnt = 10000;
-	while(sensorPin->read() == HIGH)
-		if (loopCnt-- == 0) return -2;
-
-	// READ OUTPUT - 40 BITS => 5 BYTES or TIMEOUT
-	for (int i=0; i<40; i++)
-	{
-		loopCnt = 10000;
-		while(sensorPin->read() == LOW)
-			if (loopCnt-- == 0) return -2;
-
-        //auto t = Kernel::Clock::now();
-
-        //auto t0_t = std::chrono::time_point_cast<std::chrono::microseconds>(Kernel::Clock::now());
-        //volatile long t0 = t0_t.time_since_epoch().count();
-
-        //volatile auto t0 = us_ticker_read();
-
-		//unsigned long t = micros();
-
-        timer_object.start();
-
-        
-
-		loopCnt = 10000;
-		while(sensorPin->read() == HIGH)
-			if (loopCnt-- == 0) return -2;
-
-        //auto t1_t = std::chrono::time_point_cast<std::chrono::microseconds>(Kernel::Clock::now());
-        //volatile long t1 = t1_t.time_since_epoch().count();
-
-        timer_object.stop();
-
-		if (chrono::duration_cast<chrono::microseconds>(timer_object.elapsed_time()).count() > 40) bits[idx] |= (1 << cnt);
-		if (cnt == 0)   // next byte?
-		{
-			cnt = 7;    // restart at MSB
-			idx++;      // next byte!
-		}
-		else cnt--;
-
-        timer_object.reset();
-	}
-
-	// WRITE TO RIGHT VARS
-    // as bits[1] and bits[3] are allways zero they are omitted in formulas.
-	humidity    = bits[0]; 
-	temperature = bits[2]; 
-
-	uint8_t sum = bits[0] + bits[2];  
-
-	if (bits[4] != sum) return -1;
-	return 0;
-}
-
-/*
 int Dht11::read()
 {
     uint8_t data[5] = {0};
     Timer timer_object;
+    timer_object.reset();
+    uint16_t data_time = 0;
+    uint8_t data_bit = 0;
+
+    sensorPin->input();
+    sensorPin->mode(OpenDrain);
+    wait_us(1e6);
 
     //start signal
     sensorPin->output();
+    //sensorPin->mode(OpenDrain);
     sensorPin->write(LOW);
-    //ThisThread::sleep_for(18); //wait for 18ms
-    wait_us(18e3);
-    sensorPin->write(HIGH);
-    wait_us(30); //wait for 20-40us
+    wait_us(20e3); //wait for 18ms
+    //sensorPin->write(HIGH);
+    //wait_us(30); //wait for 20-40us
+    //sensorPin->write(LOW);
+
+    //core_util_critical_section_enter();
+
     sensorPin->input();
+    sensorPin->mode(OpenDrain);
 
-    for(int i = 0; i < 40; i++)
-    {
-        while(sensorPin->read() == LOW);
-        timer_object.start();
-        
-        
-
-    }
+    wait_us(80);
+    while(sensorPin->read() == LOW);
+    //if(sensorPin->read() == LOW) wait_us(80); //wait for 80us
+    //wait_us(80); //wait for 80us
+    wait_us(20);
+    while(sensorPin->read() == HIGH);
+    //if(sensorPin->read() == HIGH) wait_us(80); //wait for 80us
 
 
     
+    
+    for(int i = 0; i < 5; i++)
+    {
+        for(int j = 7; j >= 0; j--)
+        {
+            wait_us(50); //wait for 50us
+            //while(sensorPin->read() == LOW); //wait while low
+
+            timer_object.start();
+            while(sensorPin->read() == HIGH) wait_us(10);
+            //wait_us(40);
+            //if(sensorPin) data_bit = 0;
+            //else data_bit = 1;
+            timer_object.stop();
+            data_time = (uint16_t)chrono::duration_cast<chrono::microseconds>(timer_object.elapsed_time()).count();
+            if(data_time < 50) data_bit = 0;
+            else data_bit = 1;
+            data[i] += data_bit << j;
+            timer_object.reset();
+        }
+    }
+    //core_util_critical_section_exit();
+
+    temperature = data[3];
+    humidity = data[1];
+
+    sensorPin->output();
+    sensorPin->write(HIGH);
+    
+    return 0;
+    
 
 }
-*/
+//*/
